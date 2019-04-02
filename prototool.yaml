@@ -1,0 +1,17 @@
+protoc:
+  version: 3.7.0
+lint:
+  group: google 
+generate:
+  go_options:
+    import_path: example_grpc_k8s/proto
+  plugins:
+    - name: go
+      type: go
+      flags: plugins=grpc
+      output: /gen/go
+    - name: descriptor_set
+      output: /gen/proto/descriptor
+      file_suffix: bin
+      include_imports: true
+      include_source_info: true

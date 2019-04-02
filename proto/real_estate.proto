@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package RealEstate;
+
+option go_package = "realestate";
+
+service RealEstate{
+ rpc FindHouse(Parameters) returns (Results) {}
+}
+
+message Parameters{
+Location location = 1;
+int32 max_price = 2;
+int32 age = 3;
+int32 number_of_bedrooms = 4;
+int32 number_of_bathrooms = 5;
+double lot_size = 6;
+}
+
+message Location{
+string city = 1;
+string state = 2;
+string zip = 3;
+}
+
+message House{
+Address address = 1;
+int32 price = 2;
+int32 days_on_market = 3;
+}
+
+message Address {
+string street = 1;
+Location location = 2;
+}
+
+message Results {
+repeated House houses = 1;
+}
