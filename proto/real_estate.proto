@@ -9,7 +9,6 @@ service RealEstate{
 }
 
 message Parameters{
-Location location = 1;
 int32 max_price = 2;
 int32 age = 3;
 int32 number_of_bedrooms = 4;
@@ -27,6 +26,7 @@ message House{
 Address address = 1;
 int32 price = 2;
 int32 days_on_market = 3;
+int32 lot_size = 4;
 }
 
 message Address {

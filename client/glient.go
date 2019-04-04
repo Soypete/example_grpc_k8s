@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"context"
@@ -17,16 +17,22 @@ func (s *server) FindHouse(ctx context.Context, in *pb.Parameters) (*pb.Results,
 }
 
 func main() {
-	serverAddr := flag.String("addr", "8082", "port to connect to grpc server.")
+	serverAddr := flag.String("addr", "localhost:8082", "port to connect to grpc server.")
 	flag.Parse()
-	conn, err := grpc.Dial(*serverAddr)
+	conn, err := grpc.Dial(*serverAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
 	defer conn.Close()
-	client := pb.RealEstateClient(conn)
+	client := pb.NewRealEstateClient(conn)
 
-	feature, err := client.FindHouse(context.Background(), &pb.Parameters{})
+	feature, err := client.FindHouse(context.Background(), &pb.Parameters{
+		MaxPrice:          350000,
+		Age:               20,
+		NumberOfBedrooms:  2,
+		NumberOfBathrooms: 2,
+		LotSize:           0,
+	})
 	if err != nil {
 		panic(err)
 	}
