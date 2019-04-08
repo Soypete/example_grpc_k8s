@@ -23,25 +23,38 @@ var (
 	user     = os.Getenv("db_user")
 	password = os.Getenv("db_password")
 	dbname   = os.Getenv("db_name")
+
+	db       *sql.DB
+	grpcPort *string
 )
 
 // RealEstateServer is the grpc server for getting realestate data.
 type RealEstateServer struct{}
 
-// FindHouse is grpc call for parsing housing data.
-func (s *RealEstateServer) FindHouse(ctx context.Context, in *pb.Parameters) (*pb.Results, error) {
-	data, err := getData(in.GetMaxPrice(), in.GetAge(), in.GetNumberOfBedrooms(), in.GetNumberOfBathrooms(), in.GetLotSize())
+func init() {
+	var err error
+	grpcPort = flag.String("port", "8082", "port that grpc server is exposed on")
+
+	flag.Parse()
+
+	// Setup and test DB
+	dbStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	log.Println("setup db", dbStr)
+	db, err = sql.Open("postgres", dbStr)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return data, nil
 }
 
 func main() {
-	port := flag.String("port", "8082", "port that grpc server is exposed on")
+	defer db.Close()
+	err := db.Ping()
+	if err != nil {
+		panic(err)
+	}
 
-	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", *port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", *grpcPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -50,27 +63,27 @@ func main() {
 	grpcServer.Serve(lis)
 }
 
-func getData(maxPrice, age, numBedroom, numBathroom, lotSize int32) (*pb.Results, error) {
-	dbStr := fmt.Sprintf("host=%s, port=%s, user=%s, password=%s, dbname=%s", host, port, user, password, dbname)
+// FindHouse is grpc call for parsing housing data.
+func (s *RealEstateServer) FindHouse(ctx context.Context, in *pb.Parameters) (*pb.Results, error) {
+	data, err := getData(ctx, in.MaxPrice, in.Age, in.NumberOfBedrooms, in.NumberOfBathrooms, in.LotSize, db)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
 
-	log.Panicln("setup db", dbStr)
-	db, err := sql.Open("postgres", dbStr)
+func getData(ctx context.Context, maxPrice, age, numBedroom, numBathroom, lotSize int32, database *sql.DB) (results *pb.Results, err error) {
+	year := 2019 - age
+	rows, err := database.Query(`SELECT lotsizesquarefeet, taxvaluedollarcnt  FROM houses AS h
+		WHERE h.taxvaluedollarcnt >= $1 AND h.yearbuilt >= $2 AND h.bedroomcnt >= $3 AND h.bathroomcnt >= $4 AND h.lotsizesquarefeet >= $5`,
+		maxPrice, year, numBedroom, numBathroom, lotSize)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
 
-	var results *pb.Results
-	year := 2019 - age
-
-	rows, err := db.Query(`SELECT regionidcity, regionidzip, taxvaluedollarcnt  FROM houses
-		WHERE taxvaluedollarcnt >= $1, yearbuilt > $2, bedroomcnt > $3, bathroomcnt > $4, lotsizesquarefeet > $5`,
-		maxPrice, year, numBedroom, numBathroom, lotSize)
 	for rows.Next() {
 		var house *pb.House
 		if err := rows.Scan(house.Price, house.LotSize); err != nil {
-			// Check for a scan error.
-			// Query rows will be closed with defer.
 			log.Fatal(err)
 		}
 		house.Address.Street = "123 apple rd"
@@ -78,11 +91,14 @@ func getData(maxPrice, age, numBedroom, numBathroom, lotSize int32) (*pb.Results
 		house.Address.Location.Zip = "23456"
 		house.DaysOnMarket = rand.Int31n(365)
 
-		err := rows.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
 		results.Houses = append(results.Houses, house)
+	}
+	if err = rows.Err(); err != nil {
+		log.Println(err)
+	}
+	err = rows.Close()
+	if err != nil {
+		log.Fatal(err)
 	}
 	log.Println("send results")
 	return results, nil
