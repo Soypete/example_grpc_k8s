@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 
@@ -74,32 +74,73 @@ func (s *RealEstateServer) FindHouse(ctx context.Context, in *pb.Parameters) (*p
 
 func getData(ctx context.Context, maxPrice, age, numBedroom, numBathroom, lotSize int32, database *sql.DB) (results *pb.Results, err error) {
 	year := 2019 - age
-	rows, err := database.Query(`SELECT lotsizesquarefeet, taxvaluedollarcnt  FROM houses AS h
-		WHERE h.taxvaluedollarcnt >= $1 AND h.yearbuilt >= $2 AND h.bedroomcnt >= $3 AND h.bathroomcnt >= $4 AND h.lotsizesquarefeet >= $5`,
-		maxPrice, year, numBedroom, numBathroom, lotSize)
+	file, err := os.Open("data/properties_2016.csv")
 	if err != nil {
 		panic(err)
 	}
-
-	for rows.Next() {
-		var house *pb.House
-		if err := rows.Scan(house.Price, house.LotSize); err != nil {
-			log.Fatal(err)
-		}
-		house.Address.Street = "123 apple rd"
-		house.Address.Location.City = "Boston"
-		house.Address.Location.Zip = "23456"
-		house.DaysOnMarket = rand.Int31n(365)
-
-		results.Houses = append(results.Houses, house)
-	}
-	if err = rows.Err(); err != nil {
-		log.Println(err)
-	}
-	err = rows.Close()
+	// read in file as csv
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
+
+	type record struct{
+		year
+		lotSize
+		Price
+		numBedroom
+		numBathroom
+	}
+
+	recs := []record
+
+	for i, r := range records{
+		var rec record
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// rows, err := database.Query(`SELECT lotsizesquarefeet, taxvaluedollarcnt  FROM houses AS h
+	// 	WHERE h.taxvaluedollarcnt >= $1 AND h.yearbuilt >= $2 AND h.bedroomcnt >= $3 AND h.bathroomcnt >= $4 AND h.lotsizesquarefeet >= $5`,
+	// 	maxPrice, year, numBedroom, numBathroom, lotSize)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// for rows.Next() {
+	// 	var house *pb.House
+	// 	if err := rows.Scan(house.Price, house.LotSize); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	house.Address.Street = "123 apple rd"
+	// 	house.Address.Location.City = "Boston"
+	// 	house.Address.Location.Zip = "23456"
+	// 	house.DaysOnMarket = rand.Int31n(365)
+
+	// 	results.Houses = append(results.Houses, house)
+	// }
+	// if err = rows.Err(); err != nil {
+	// 	log.Println(err)
+	// }
+	// err = rows.Close()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	log.Println("send results")
 	return results, nil
 }

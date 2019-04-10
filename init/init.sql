@@ -1,14 +1,12 @@
 CREATE TABLE houses
 (
-  id serial NOT NULL,
-  price Integer,
-  lot_size DECIMAL,
-  age INTEGER,
-  number_of_bedrooms INTEGER,
-  number_of_bathrooms DECIMAL,
-  city TEXT,
-  state TEXT,
-  zip TEXT,
+  taxvaluedollarcnt Integer,
+  lotsizesquarefeet DECIMAL,
+  yearbuilt INTEGER,
+  bedroomcnt INTEGER,
+  bathroomcnt DECIMAL,
+  regionidcity TEXT,
+  regionidzip TEXT,
 );
 
 COPY houses(
